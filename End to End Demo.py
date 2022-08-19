@@ -11,8 +11,6 @@
 # MAGIC 
 # MAGIC For this example, we'll be working customer data. 
 # MAGIC The data is stored in the Delta Lake format.
-# MAGIC 
-# MAGIC Hello!
 
 # COMMAND ----------
 
