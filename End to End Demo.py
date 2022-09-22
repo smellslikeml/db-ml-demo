@@ -26,27 +26,34 @@
 
 # COMMAND ----------
 
+# Using our database from here forward
+user = dbutils.notebook.entry_point.getDbutils().notebook().getContext().tags().apply('user')
+database_name = 'ml_demo_churn_{}'.format(user.split(".")[0])
+spark.sql("USE {}".format(database_name))
+
+# COMMAND ----------
+
 # Read into Spark
-df = spark.table("ml_demo_churn.bronze_customers")
+df = spark.table("bronze_customers")
 
 display(df)
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC You can always switch to `koalas` if you prefer pandas syntax while leveraging spark under the hood!
+# MAGIC You can always use `Pandas on Spark` if you prefer pandas syntax while leveraging spark under the hood!
 
 # COMMAND ----------
 
-import databricks.koalas as ks
+import pyspark.pandas as ps
 
 def compute_churn_features(data):
   
   # Convert to koalas
-  data = data.to_koalas()
+  data = data.to_pandas_on_spark()
   
   # OHE
-  data = ks.get_dummies(data, 
+  data = ps.get_dummies(data, 
                         columns=['gender', 'partner', 'dependents',
                                  'phoneService', 'multipleLines', 'internetService',
                                  'onlineSecurity', 'onlineBackup', 'deviceProtection',
@@ -76,7 +83,6 @@ def compute_churn_features(data):
 # COMMAND ----------
 
 # Set paths
-database_name = 'ml_demo_churn'
 user = dbutils.notebook.entry_point.getDbutils().notebook().getContext().tags().apply('user')
 silver_tbl_path = '/home/{}/ml_demo_churn/silver/'.format(user)
 silver_tbl_name = 'silver_customers'
@@ -98,7 +104,7 @@ spark.sql('''
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC SELECT * FROM ml_demo_churn.silver_customers
+# MAGIC SELECT * FROM silver_customers
 
 # COMMAND ----------
 
@@ -110,7 +116,7 @@ spark.sql('''
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC SELECT * FROM ml_demo_churn.silver_customers
+# MAGIC SELECT * FROM silver_customers
 
 # COMMAND ----------
 
@@ -172,7 +178,7 @@ def fit_model(n_estimators=10, max_depth=5):
   
   mlflow.autolog()
   
-  training_set = spark.read.table("ml_demo_churn.silver_customers")
+  training_set = spark.read.table("silver_customers")
 
   training_pd = training_set.toPandas()
   X = training_pd.drop(["churn", "churnString", "customerID"], axis=1)
@@ -231,17 +237,18 @@ for n_estimators, max_depth in [(n_estimators,max_depth) for n_estimators in nEs
 
 # COMMAND ----------
 
-import mlflow
-logged_model = 'runs:/49c5363ac4454042a88dc29d9a661a7e/model'
+logged_model = 'runs:/2d3f47be972641f6842f86e73ff52780/model'
 
-# Load model as a Spark UDF.
-loaded_model = mlflow.pyfunc.spark_udf(spark, model_uri=logged_model)
+# Load model as a PyFuncModel.
+loaded_model = mlflow.pyfunc.load_model(logged_model)
 
-inference_data = spark.read.format("delta").load("/home/salma.mayorquin@databricks.com/ml_demo_churn/eval/")
-columns = inference_data.columns
+# inference data
+inference_data = spark.table("silver_customers").toPandas()
 
-# Predict on a Spark DataFrame.
-display(inference_data.withColumn('predictions', loaded_model(*columns)))
+# Predict on a Pandas DataFrame.
+inference_data["predictions"] = loaded_model.predict(inference_data)
+
+display(inference_data)
 
 # COMMAND ----------
 

@@ -19,6 +19,10 @@
 
 # COMMAND ----------
 
+# MAGIC %sh pwd
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ### Load into Delta Lake
 
@@ -30,19 +34,23 @@
 # COMMAND ----------
 
 # Load libraries
+import os
 import shutil
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 from pyspark.sql.functions import col, when
 from pyspark.sql.types import StructType,StructField,DoubleType, StringType, IntegerType, FloatType
 
-# Set config for database name, file paths, and table names
-database_name = 'ml_demo_churn'
+local_dir = os.getcwd()
 
+# Set config for database name, file paths, and table names
 # Move file from driver to DBFS
 user = dbutils.notebook.entry_point.getDbutils().notebook().getContext().tags().apply('user')
 driver_to_dbfs_path = 'dbfs:/home/{}/ml_demo_churn/Telco-Customer-Churn.csv'.format(user)
-dbutils.fs.cp('file:/databricks/driver/Telco-Customer-Churn.csv', driver_to_dbfs_path)
+dbutils.fs.cp('file:{}/Telco-Customer-Churn.csv'.format(local_dir), driver_to_dbfs_path)
+
+# Customize Database name
+database_name = 'ml_demo_churn_{}'.format(user.split(".")[0])
 
 # Paths for various Delta tables
 bronze_tbl_path = '/home/{}/ml_demo_churn/bronze/'.format(user)
@@ -66,6 +74,10 @@ shutil.rmtree('/dbfs'+bronze_tbl_path, ignore_errors=True)
 shutil.rmtree('/dbfs'+silver_tbl_path, ignore_errors=True)
 shutil.rmtree('/dbfs'+gold_tbl_name, ignore_errors=True)
 shutil.rmtree('/dbfs'+ml_preds_path, ignore_errors=True)
+
+# COMMAND ----------
+
+spark.sql("USE {}".format(database_name))
 
 # COMMAND ----------
 
@@ -129,7 +141,7 @@ _ = spark.sql('''
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC SELECT * FROM ml_demo_churn.bronze_customers
+# MAGIC SELECT * FROM bronze_customers
 
 # COMMAND ----------
 
@@ -157,7 +169,7 @@ _ = spark.sql('''
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC DESCRIBE HISTORY ml_demo_churn.bronze_customers
+# MAGIC DESCRIBE HISTORY bronze_customers
 
 # COMMAND ----------
 
@@ -359,7 +371,7 @@ spark.sql('''
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC OPTIMIZE ml_demo_churn.gold_customers ZORDER BY customerID, tenure
+# MAGIC OPTIMIZE gold_customers ZORDER BY customerID, tenure
 
 # COMMAND ----------
 
@@ -386,7 +398,7 @@ spark.sql('''
 # COMMAND ----------
 
 # MAGIC %sql 
-# MAGIC CACHE SELECT * FROM ml_demo_churn.gold_customers
+# MAGIC CACHE SELECT * FROM gold_customers
 
 # COMMAND ----------
 

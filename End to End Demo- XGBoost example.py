@@ -260,8 +260,8 @@ with mlflow.start_run(run_name='xgboost_search'):
     fn=fit_model, 
     space=search_space, 
     algo=tpe.suggest, 
-    max_evals=100,
-    rstate=np.random.RandomState(123),
+    max_evals=10,
+    rstate=np.random.default_rng(42),
     trials=spark_trials
   )
 
@@ -299,7 +299,7 @@ with mlflow.start_run(run_name='xgboost_search'):
 # COMMAND ----------
 
 import mlflow
-logged_model = 'runs:/aaa9fa1197de4421abeb22e209d56dda/model'
+logged_model = 'runs:/b8b90971983c4488880f43252072d922/model'
 
 # Load model as a PyFuncModel.
 loaded_model = mlflow.pyfunc.load_model(logged_model)
@@ -313,7 +313,7 @@ display(inference_data)
 # COMMAND ----------
 
 import mlflow
-logged_model = 'runs:/aaa9fa1197de4421abeb22e209d56dda/model'
+logged_model = 'runs:/b8b90971983c4488880f43252072d922/model'
 
 # Load model as a Spark UDF.
 loaded_model = mlflow.pyfunc.spark_udf(spark, model_uri=logged_model)
@@ -331,9 +331,13 @@ display(inference_data.withColumn('predictions', loaded_model(*columns)))
 
 # COMMAND ----------
 
-model_name = 'ML_churn_demo'
+model_name = 'churn-demo-A'
 stage = 'Staging'
 
 staged_model = mlflow.pyfunc.spark_udf(spark, model_uri=f"models:/{model_name}/{stage}")
 
 display(inference_data.withColumn('predictions', staged_model(*columns)))
+
+# COMMAND ----------
+
+
